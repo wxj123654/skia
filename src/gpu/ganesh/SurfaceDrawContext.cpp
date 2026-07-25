@@ -1940,9 +1940,11 @@ void SurfaceDrawContext::addDrawOp(const GrClip* clip,
 
     const bool opUsesStencil = drawOp->usesStencil();
 
-    // Always trigger DMSAA when there is stencil. This ensures stencil contents get properly
-    // preserved between render passes, if needed.
-    const bool drawNeedsMSAA = opUsesMSAA || (fCanUseDynamicMSAA && opUsesStencil);
+    // Always trigger DMSAA when an op writes stencil or consumes a stencil clip. This keeps
+    // preserved stencil contents on the same attachment when the SurfaceDrawContext splits its
+    // OpsTask; the single-sample attachment is a different stencil domain.
+    const bool drawNeedsMSAA =
+            opUsesMSAA || (fCanUseDynamicMSAA && (opUsesStencil || appliedClip.hasStencilClip()));
 
     // Must be called before setDstProxyView so that it sees the final bounds of the op.
     op->setClippedBounds(bounds);

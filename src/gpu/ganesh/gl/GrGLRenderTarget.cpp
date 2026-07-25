@@ -202,6 +202,8 @@ bool GrGLRenderTarget::ensureDynamicMSAAAttachment() {
                     this->dimensions(), this->backendFormat(), internalSampleCount,
                     GrProtected(this->isProtected()), GrMemoryless::kNo).release()));
     if (!fDynamicMSAAAttachment) {
+        this->getGLGpu()->deleteFramebuffer(fMultisampleFBOID);
+        fMultisampleFBOID = 0;
         return false;
     }
 
@@ -312,8 +314,17 @@ void GrGLRenderTarget::bindForResolve(GrGLGpu::ResolveDirection resolveDirection
 }
 
 void GrGLRenderTarget::onRelease() {
+    GrGLGpu* gpu = this->getGLGpu();
+
+    // fRTFBOOwnership describes the FBO IDs supplied when this render target was wrapped. A
+    // manual dynamic-MSAA FBO is created internally afterwards and is always ours, even when the
+    // single-sample FBO is borrowed from an embedder.
+    if (fDynamicMSAAAttachment && fMultisampleFBOID && fMultisampleFBOID != fSingleSampleFBOID) {
+        gpu->deleteFramebuffer(fMultisampleFBOID);
+        fMultisampleFBOID = 0;
+    }
+
     if (GrBackendObjectOwnership::kBorrowed != fRTFBOOwnership) {
-        GrGLGpu* gpu = this->getGLGpu();
         if (fSingleSampleFBOID) {
             gpu->deleteFramebuffer(fSingleSampleFBOID);
         }
