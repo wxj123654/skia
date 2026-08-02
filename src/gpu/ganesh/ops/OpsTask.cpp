@@ -444,13 +444,25 @@ void OpsTask::addOp(GrDrawingManager* drawingMgr, GrOp::Owner op,
                    nullptr, caps);
 }
 
-void OpsTask::addDrawOp(GrDrawingManager* drawingMgr, GrOp::Owner op, bool usesMSAA,
-                        const GrProcessorSet::Analysis& processorAnalysis, GrAppliedClip&& clip,
+void OpsTask::addDrawOp(GrDrawingManager* drawingMgr,
+                        GrOp::Owner op,
+                        bool usesMSAA,
+                        const GrProcessorSet::Analysis& processorAnalysis,
+                        GrAppliedClip&& clip,
                         const GrDstProxyView& dstProxyView,
-                        GrTextureResolveManager textureResolveManager, const GrCaps& caps) {
-    auto addDependency = [&](GrSurfaceProxy* p, skgpu::Mipmapped mipmapped) {
-        this->addSampledTexture(p);
-        this->addDependency(drawingMgr, p, mipmapped, textureResolveManager, caps);
+                        GrTextureResolveManager textureResolveManager,
+                        const GrCaps& caps) {
+    struct AddDependencyContext {
+        OpsTask* task;
+        GrDrawingManager* drawingManager;
+        GrTextureResolveManager textureResolveManager;
+        const GrCaps* caps;
+    } context{this, drawingMgr, textureResolveManager, &caps};
+
+    GrVisitProxyFunc addDependency = [&context](GrSurfaceProxy* p, skgpu::Mipmapped mipmapped) {
+        context.task->addSampledTexture(p);
+        context.task->addDependency(
+                context.drawingManager, p, mipmapped, context.textureResolveManager, *context.caps);
     };
 
     op->visitProxies(addDependency);
